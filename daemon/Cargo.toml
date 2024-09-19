@@ -1,0 +1,13 @@
+[package]
+name = "vhkd-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+thiserror = "1.0.63"
+
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = { version = "0.10.0", features = ["mac_os_10_8_features"] }
+core-graphics = "0.24.0"
