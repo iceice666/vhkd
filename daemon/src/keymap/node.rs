@@ -1,5 +1,4 @@
-use super::{keys::KeyBinding, KeyAction, KeySpec};
-
+use super::{keys::KeyBinding, KeyAction, KeyCode, KeySpec};
 
 #[derive(Debug)]
 pub struct ActionNode {
@@ -8,13 +7,27 @@ pub struct ActionNode {
     pub(crate) children: Vec<ActionNode>,
 }
 
+impl Default for ActionNode {
+    fn default() -> Self {
+        Self {
+            key: KeySpec(Vec::new(), KeyCode::Null),
+            action: KeyAction::Nop,
+            children: Vec::new(),
+        }
+    }
+}
+
 impl ActionNode {
-    pub fn new(key: KeySpec, action: KeyAction) -> Self {
+    pub const fn new(key: KeySpec, action: KeyAction) -> Self {
         Self {
             key,
             action,
             children: Vec::new(),
         }
+    }
+
+    pub fn get(&self, key: &KeySpec) -> Option<&ActionNode> {
+        self.children.iter().find(|node| &node.key == key)
     }
 
     fn get_or_insert(&mut self, key: KeySpec, action: KeyAction) -> &mut ActionNode {
@@ -59,6 +72,10 @@ impl ActionNode {
                 .unwrap();
         }
         node.children.retain(|node| node.key != target_key);
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.children.is_empty()
     }
 }
 

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
+
 // Ref: https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX11.3.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
 /*
  *   Summary:
@@ -17,8 +18,42 @@
  *     in this case, pressing 'A' will generate a different virtual
  *     keycode.
 */
-#[derive(Debug, PartialEq, Eq)]
-pub enum KeyCode {
+
+macro_rules! keycode {
+    ($($name:ident = $value:expr,)*) => {
+        #[derive(Debug, PartialEq, Eq, Clone)]
+        pub enum KeyCode {
+            $($name = $value,)*
+            Null,
+        }
+
+        impl From<KeyCode> for u32 {
+            fn from(val: KeyCode) -> Self {
+                val as u32
+            }
+        }
+
+        impl From<u32> for KeyCode {
+            fn from(val: u32) -> Self {
+                match val {
+                    $(x if x == $value => KeyCode::$name,)*
+                    _ => KeyCode::Null,
+                }
+            }
+        }
+
+        impl From<i64> for KeyCode {
+            fn from(val: i64) -> Self {
+                match val {
+                    $(x if x == $value as i64 => KeyCode::$name,)*
+                    _ => KeyCode::Null,
+                }
+            }
+        }
+    }
+}
+
+keycode! {
     kVK_ANSI_A = 0x00,
     kVK_ANSI_S = 0x01,
     kVK_ANSI_D = 0x02,
@@ -134,12 +169,4 @@ pub enum KeyCode {
     kVK_RightArrow = 0x7C,
     kVK_DownArrow = 0x7D,
     kVK_UpArrow = 0x7E,
-
-    Null,
-}
-
-impl From<KeyCode> for u32 {
-    fn from(val: KeyCode) -> Self {
-        val as u32
-    }
 }
