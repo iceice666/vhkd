@@ -70,19 +70,67 @@ impl KeyModifier {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct KeySpec(pub Vec<KeyModifier>, pub KeyCode);
 
-impl Debug for KeySpec {
+impl Display for KeySpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for modifier in &self.0 {
             write!(f, "{}-", modifier)?;
         }
-        write!(f, "{:?}", self.1)
+        write!(f, "{}", self.1)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
+pub struct KeySequence(pub Vec<KeySpec>);
+
+impl Display for KeySequence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        for key in &self.0 {
+            write!(f, "{} ", key)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl IntoIterator for KeySequence {
+    type Item = KeySpec;
+    type IntoIter = std::vec::IntoIter<KeySpec>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl KeySequence {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn push(&mut self, key: KeySpec) {
+        self.0.push(key);
+    }
+
+    pub fn pop(&mut self) -> Option<KeySpec> {
+        self.0.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
     }
 }
 
 pub struct KeyBinding {
-    pub sequences: Vec<KeySpec>,
+    pub sequences: KeySequence,
     pub action: KeyAction,
 }

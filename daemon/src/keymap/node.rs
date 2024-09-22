@@ -1,4 +1,8 @@
-use super::{keys::KeyBinding, KeyAction, KeyCode, KeySpec};
+use std::collections::HashMap;
+
+use super::{
+    keys::KeyBinding, KeyAction, KeyCode, KeySequence, KeySpec, KeymapError, KeymapResult,
+};
 
 #[derive(Debug)]
 pub struct ActionNode {
@@ -26,8 +30,24 @@ impl ActionNode {
         }
     }
 
-    pub fn get(&self, key: &KeySpec) -> Option<&ActionNode> {
-        self.children.iter().find(|node| &node.key == key)
+    pub fn get(&self, key: &KeySpec) -> KeymapResult<&ActionNode> {
+        self.children
+            .iter()
+            .find(|node| &node.key == key)
+            .ok_or(KeymapError::KeyNotFound(
+                KeySequence::default(),
+                key.to_string(),
+            ))
+    }
+
+    fn get_mut(&mut self, key: &KeySpec) -> KeymapResult<&mut ActionNode> {
+        self.children
+            .iter_mut()
+            .find(|node| &node.key == key)
+            .ok_or(KeymapError::KeyNotFound(
+                KeySequence::default(),
+                key.to_string(),
+            ))
     }
 
     fn get_or_insert(&mut self, key: KeySpec, action: KeyAction) -> &mut ActionNode {
@@ -60,22 +80,45 @@ impl ActionNode {
     }
 
     // Remove a binding from the keymap
-    pub fn unbind(&mut self, mut sequences: Vec<KeySpec>) {
-        let mut node = self;
+    pub fn unbind(&mut self, mut sequences: KeySequence) -> KeymapResult<()> {
         let target_key = sequences.pop().unwrap();
+        let iter = sequences.clone().into_iter();
 
-        for key in sequences {
-            node = node
-                .children
-                .iter_mut()
-                .find(|node| node.key == key)
-                .unwrap();
-        }
+        let node = iter.fold(Ok(self), |node, key| {
+            node?
+                .get_mut(&key)
+                .map_err(|_| KeymapError::KeyNotFound(sequences.clone(), key.to_string()))
+        })?;
+
         node.children.retain(|node| node.key != target_key);
+        Ok(())
     }
 
     pub fn is_leaf(&self) -> bool {
         self.children.is_empty()
+    }
+}
+
+// Mode, KeyMap
+#[derive(Debug, Default)]
+pub struct KeyMap(HashMap<String, ActionNode>);
+
+impl KeyMap {
+    pub fn bind(&mut self, binding: KeyBinding, mode: String) {
+        let target_keymap = self.0.entry(mode).or_default();
+        target_keymap.bind(binding);
+    }
+
+    pub fn unbind(&mut self, sequences: KeySequence, mode: String) -> KeymapResult<()> {
+        let target_keymap = self.0.get_mut(&mode).ok_or(KeymapError::NoSuchMode(mode))?;
+        target_keymap.unbind(sequences);
+        Ok(())
+    }
+
+    pub fn get_mode(&self, mode: &str) -> KeymapResult<&ActionNode> {
+        self.0
+            .get(mode)
+            .ok_or(KeymapError::NoSuchMode(mode.to_string()))
     }
 }
 
@@ -91,15 +134,15 @@ mod test {
         let mut root = ActionNode::new(KeySpec(vec![], KeyCode::kVK_ANSI_A), KeyAction::Nop);
 
         root.bind(KeyBinding {
-            sequences: vec![KeySpec(vec![], KeyCode::kVK_ANSI_B)],
+            sequences: KeySequence(vec![KeySpec(vec![], KeyCode::kVK_ANSI_B)]),
             action: KeyAction::Nop,
         });
 
         root.bind(KeyBinding {
-            sequences: vec![
+            sequences: KeySequence(vec![
                 KeySpec(vec![], KeyCode::kVK_Space),
                 KeySpec(vec![], KeyCode::kVK_ANSI_C),
-            ],
+            ]),
             action: KeyAction::Nop,
         });
 
