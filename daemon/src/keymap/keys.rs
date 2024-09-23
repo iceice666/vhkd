@@ -1,3 +1,4 @@
+use std::fmt::write;
 use std::fmt::Debug;
 use std::fmt::Display;
 
@@ -77,10 +78,30 @@ pub struct KeySpec(pub Vec<KeyModifier>, pub KeyCode);
 
 impl Display for KeySpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for modifier in &self.0 {
-            write!(f, "{}-", modifier)?;
+        let mut modifiers = self.0.clone();
+        let keycode = self.1.clone();
+        let is_modifer_empty = modifiers.is_empty();
+
+        if is_modifer_empty && keycode == KeyCode::Null {
+            return write!(f, "");
         }
-        write!(f, "{}", self.1)
+
+        if !is_modifer_empty {
+            let last = modifiers.pop();
+            write!(f, "{}", last.unwrap())?;
+            for modifier in modifiers {
+                write!(f, " + {}", modifier)?;
+            }
+        }
+
+        if keycode != KeyCode::Null {
+            if !is_modifer_empty {
+                write!(f, " + ")?;
+            }
+            write!(f, "{}", keycode)
+        } else {
+            Ok(())
+        }
     }
 }
 
