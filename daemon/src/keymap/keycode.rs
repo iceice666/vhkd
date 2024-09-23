@@ -24,40 +24,36 @@ use serde::Serialize;
 
 macro_rules! keycode {
     ($($name:ident = $value:expr,)*) => {
+        #[repr(u16)]
         #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, PartialOrd,Ord)]
         pub enum KeyCode {
-            $($name = $value,)*
-            Null,
+            $($name ,)*
+            Else(u16),
         }
 
-        impl From<KeyCode> for u32 {
-            fn from(val: KeyCode) -> Self {
-                val as u32
-            }
+        impl From<u16> for KeyCode {
+        fn from(val:u16) -> KeyCode {
+        match val {
+        $($value => KeyCode::$name,)*
+        _ => KeyCode::Else(val)
+        }
+        }
         }
 
-        impl From<u32> for KeyCode {
-            fn from(val: u32) -> Self {
-                match val {
-                    $(x if x == $value => KeyCode::$name,)*
-                    _ => KeyCode::Null,
-                }
-            }
+        impl From<KeyCode> for u16 {
+        fn from(val :KeyCode) ->u16 {
+        match val {
+        KeyCode::Else(val) => val,
+        $(KeyCode::$name => $value,)*
         }
-
-        impl From<i64> for KeyCode {
-            fn from(val: i64) -> Self {
-                match val {
-                    $(x if x == $value as i64 => KeyCode::$name,)*
-                    _ => KeyCode::Null,
-                }
-            }
+        }
         }
 
         impl std::fmt::Display for KeyCode {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
                     $(KeyCode::$name => write!(f, stringify!($name)),)*
+                    KeyCode::Else(val) => write!(f, "{:X}", val),
                     KeyCode::Null => write!(f, "Null"),
                 }
             }
@@ -66,6 +62,9 @@ macro_rules! keycode {
 }
 
 keycode! {
+    Null = 65535,
+
+
     kVK_ANSI_A = 0x00,
     kVK_ANSI_S = 0x01,
     kVK_ANSI_D = 0x02,

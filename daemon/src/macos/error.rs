@@ -1,6 +1,5 @@
-
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum MacOsRuntimeError {
+pub enum MacOsRuntimeError {
     #[error("Unable to generate new CG event")]
     CGEventError,
 }

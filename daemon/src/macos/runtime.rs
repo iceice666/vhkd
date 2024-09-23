@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::ffi::c_void;
 
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
-use core_graphics::event::{CGEvent, CGEventType, CGKeyCode};
+use core_graphics::event::{CGEvent, CGEventType};
 use core_graphics::event::{
     CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
 };
@@ -30,7 +30,7 @@ where
         vec![CGEventType::KeyDown, CGEventType::FlagsChanged],
         move |_: *const c_void, _et: CGEventType, event: &CGEvent| -> Option<CGEvent> {
             let (keycode, flags) = utils::grab_data(event);
-            let mut keycode = KeyCode::from(keycode);
+            let mut keycode = KeyCode::from(keycode as u16);
 
             // Ignore the modifier keys
             if matches!(
@@ -67,16 +67,46 @@ where
     }
 }
 
+fn ctrl_c_quit(key: &KeySpec) {
+    if key
+        == &KeySpec(
+            BTreeSet::from_iter([KeyModifier::Ctrl]),
+            KeyCode::kVK_ANSI_C,
+        )
+    {
+        std::process::exit(0);
+    }
+}
+
 /// Read the key event and print it out
 pub fn observer_mode() {
     mainloop(|event, key| {
-        let key_str = format!("{}", key);
-        if !key_str.is_empty() {
-            println!("Key: {}", key_str);
-        }
-        if key == KeySpec(BTreeSet::from_iter([KeyModifier::Ctrl]), KeyCode::kVK_ANSI_C) {
-            std::process::exit(0);
-        }
+        println!("{}", key);
+        ctrl_c_quit(&key);
         utils::consume_event(event)
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use utils::{consume_event, post_key};
+
+    use super::*;
+
+    #[test]
+    fn bind_f6_to_lock_screen() {
+        mainloop(|event, key_spec| {
+            ctrl_c_quit(&key_spec);
+
+            if key_spec == KeySpec(BTreeSet::from_iter([KeyModifier::Fn]), KeyCode::kVK_F6) {
+                let _ = post_key(KeySpec(
+                    BTreeSet::from_iter([KeyModifier::Cmd, KeyModifier::Ctrl]),
+                    KeyCode::kVK_ANSI_Q,
+                ));
+                consume_event(event)
+            } else {
+                Some(event.to_owned())
+            }
+        });
+    }
 }
