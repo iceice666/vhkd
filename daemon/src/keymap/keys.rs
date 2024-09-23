@@ -2,6 +2,8 @@ use std::fmt::Debug;
 use std::fmt::Display;
 
 use core_graphics::event::CGEventFlags;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::KeyCode;
 
@@ -13,7 +15,7 @@ pub enum KeyAction {
     SendKey(KeySpec),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum KeyModifier {
     Ctrl,
     Shift,
@@ -70,7 +72,7 @@ impl KeyModifier {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct KeySpec(pub Vec<KeyModifier>, pub KeyCode);
 
 impl Display for KeySpec {
@@ -82,7 +84,7 @@ impl Display for KeySpec {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Default)]
+#[derive(PartialEq, Eq, Clone, Debug, Default, Ord, PartialOrd)]
 pub struct KeySequence(pub Vec<KeySpec>);
 
 impl Display for KeySequence {

@@ -2,6 +2,9 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
+use serde::Deserialize;
+use serde::Serialize;
+
 // Ref: https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX11.3.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
 /*
  *   Summary:
@@ -21,7 +24,7 @@
 
 macro_rules! keycode {
     ($($name:ident = $value:expr,)*) => {
-        #[derive(Debug, PartialEq, Eq, Clone)]
+        #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, PartialOrd,Ord)]
         pub enum KeyCode {
             $($name = $value,)*
             Null,
