@@ -10,9 +10,10 @@ pub fn run(keymap: KeymapDaemon) {
     let (tx, rx) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
-        runtime::mainloop(|event, key| {
+        runtime::mainloop(|_,_,event| {
             let tx = tx.clone();
 
+            let key = utils::grab_key(event);
             tx.send(key).unwrap();
 
             consume_event(event)

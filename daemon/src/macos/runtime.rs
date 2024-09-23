@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
-use std::ffi::c_void;
 
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
-use core_graphics::event::{CGEvent, CGEventType};
+use core_graphics::event::{CGEvent, CGEventTapProxy, CGEventType};
 use core_graphics::event::{
     CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
 };
 
 use crate::keymap::{KeyCode, KeyModifier, KeySpec};
+use crate::macos::utils::grab_key;
 
 use super::utils;
 
@@ -19,7 +19,7 @@ use super::utils;
 /// The solution is open a channel and send the data to the receiver thread.
 pub(crate) fn mainloop<F>(callback: F)
 where
-    F: Fn(&CGEvent, KeySpec) -> Option<CGEvent>,
+    F: Fn(CGEventTapProxy, CGEventType, &CGEvent) -> Option<CGEvent>,
 {
     let current = CFRunLoop::get_current();
 
@@ -28,31 +28,7 @@ where
         CGEventTapPlacement::HeadInsertEventTap,
         CGEventTapOptions::Default,
         vec![CGEventType::KeyDown, CGEventType::FlagsChanged],
-        move |_: *const c_void, _et: CGEventType, event: &CGEvent| -> Option<CGEvent> {
-            let (keycode, flags) = utils::grab_data(event);
-            let mut keycode = KeyCode::from(keycode as u16);
-
-            // Ignore the modifier keys
-            if matches!(
-                keycode,
-                KeyCode::kVK_Option
-                    | KeyCode::kVK_RightOption
-                    | KeyCode::kVK_Shift
-                    | KeyCode::kVK_RightShift
-                    | KeyCode::kVK_Command
-                    | KeyCode::kVK_RightCommand
-                    | KeyCode::kVK_Control
-                    | KeyCode::kVK_RightControl
-                    | KeyCode::kVK_Function
-            ) {
-                keycode = KeyCode::Null
-            }
-
-            let modifiers = KeyModifier::from(flags);
-
-            let key = KeySpec(modifiers, keycode);
-            callback(event, key)
-        },
+        callback,
     )
     .unwrap();
 
@@ -80,7 +56,8 @@ fn ctrl_c_quit(key: &KeySpec) {
 
 /// Read the key event and print it out
 pub fn observer_mode() {
-    mainloop(|event, key| {
+    mainloop(|_, _, event| {
+        let key = grab_key(event);
         println!("{}", key);
         ctrl_c_quit(&key);
         utils::consume_event(event)
@@ -89,13 +66,15 @@ pub fn observer_mode() {
 
 #[cfg(test)]
 mod tests {
+
     use utils::{consume_event, post_key};
 
     use super::*;
 
     #[test]
     fn bind_f6_to_lock_screen() {
-        mainloop(|event, key_spec| {
+        mainloop(|_, _, event| {
+            let key_spec = grab_key(event);
             ctrl_c_quit(&key_spec);
 
             if key_spec == KeySpec(BTreeSet::from_iter([KeyModifier::Fn]), KeyCode::kVK_F6) {
@@ -103,6 +82,24 @@ mod tests {
                     BTreeSet::from_iter([KeyModifier::Cmd, KeyModifier::Ctrl]),
                     KeyCode::kVK_ANSI_Q,
                 ));
+                consume_event(event)
+            } else {
+                Some(event.to_owned())
+            }
+        });
+    }
+
+    #[test]
+    fn swap_esc_and_capslock() {
+        mainloop(|_, _, event| {
+            let key_spec = grab_key(event);
+            ctrl_c_quit(&key_spec);
+
+            if key_spec == KeySpec(BTreeSet::new(), KeyCode::kVK_Escape) {
+                let _ = post_key(KeySpec(BTreeSet::new(), KeyCode::kVK_CapsLock));
+                consume_event(event)
+            } else if key_spec == KeySpec(BTreeSet::new(), KeyCode::kVK_CapsLock) {
+                let _ = post_key(KeySpec(BTreeSet::new(), KeyCode::kVK_Escape));
                 consume_event(event)
             } else {
                 Some(event.to_owned())

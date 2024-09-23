@@ -1,5 +1,7 @@
+use std::os::raw::c_void;
+
 use core_graphics::{
-    event::{CGEvent, CGEventFlags, CGEventTapLocation, EventField},
+    event::{CGEvent, CGEventFlags, CGEventTapCallBackFn, CGEventTapLocation, CGEventTapProxy, CGEventType, EventField},
     event_source::{CGEventSource, CGEventSourceStateID},
 };
 
@@ -13,13 +15,6 @@ pub(crate) fn consume_event(event: &CGEvent) -> Option<CGEvent> {
     event.set_flags(CGEventFlags::CGEventFlagNull);
     event.set_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE, i64::MAX);
     None
-}
-
-pub(crate) fn grab_data(event: &CGEvent) -> (i64, CGEventFlags) {
-    let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-    let flags = event.get_flags();
-    println!("keycode: {}, flags: {:?}", keycode, flags);
-    (keycode, flags)
 }
 
 pub(crate) fn post_key(key: KeySpec) -> Result<(), MacOsRuntimeError> {
@@ -39,4 +34,30 @@ pub(crate) fn post_key(key: KeySpec) -> Result<(), MacOsRuntimeError> {
     event.post(CGEventTapLocation::HID);
 
     Ok(())
+}
+
+pub(crate) fn grab_key(event : &CGEvent)  -> KeySpec  {
+    let flags = event.get_flags();
+    let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
+    let mut keycode = KeyCode::from(keycode as u16);
+
+    // Ignore the modifier keys
+    if matches!(
+        keycode,
+        KeyCode::kVK_Option
+        | KeyCode::kVK_RightOption
+        | KeyCode::kVK_Shift
+        | KeyCode::kVK_RightShift
+        | KeyCode::kVK_Command
+        | KeyCode::kVK_RightCommand
+        | KeyCode::kVK_Control
+        | KeyCode::kVK_RightControl
+        | KeyCode::kVK_Function
+    ) {
+        keycode = KeyCode::Null
+    }
+
+    let modifiers = KeyModifier::from(flags);
+
+     KeySpec(modifiers, keycode)
 }
