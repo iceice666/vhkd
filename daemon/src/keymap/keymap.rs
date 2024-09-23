@@ -45,6 +45,9 @@ impl KeymapDaemon {
     }
 
     pub fn make_input(&mut self, key: KeySpec) -> Option<KeyAction> {
+        if matches!(key, KeySpec(_, KeyCode::Null)) {
+            return None;
+        }
         self.current_sequence.push(key);
         self.try_interpret()
     }

@@ -1,4 +1,5 @@
-use std::fmt::write;
+use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Display;
 
@@ -38,27 +39,27 @@ impl Display for KeyModifier {
 }
 
 impl KeyModifier {
-    pub fn from(value: CGEventFlags) -> Vec<Self> {
-        let mut modifiers = Vec::new();
+    pub fn from(value: CGEventFlags) -> BTreeSet<Self> {
+        let mut modifiers = BTreeSet::new();
         if value.contains(CGEventFlags::CGEventFlagControl) {
-            modifiers.push(KeyModifier::Ctrl);
+            modifiers.insert(KeyModifier::Ctrl);
         }
         if value.contains(CGEventFlags::CGEventFlagShift) {
-            modifiers.push(KeyModifier::Shift);
+            modifiers.insert(KeyModifier::Shift);
         }
         if value.contains(CGEventFlags::CGEventFlagAlternate) {
-            modifiers.push(KeyModifier::Alt);
+            modifiers.insert(KeyModifier::Alt);
         }
         if value.contains(CGEventFlags::CGEventFlagCommand) {
-            modifiers.push(KeyModifier::Cmd);
+            modifiers.insert(KeyModifier::Cmd);
         }
         if value.contains(CGEventFlags::CGEventFlagSecondaryFn) {
-            modifiers.push(KeyModifier::Fn);
+            modifiers.insert(KeyModifier::Fn);
         }
         modifiers
     }
 
-    pub fn into_event_flag(modifiers: Vec<Self>) -> CGEventFlags {
+    pub fn into_event_flag(modifiers: BTreeSet<Self>) -> CGEventFlags {
         modifiers
             .iter()
             .fold(CGEventFlags::CGEventFlagNull, |acc, modifier| {
@@ -74,11 +75,11 @@ impl KeyModifier {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct KeySpec(pub Vec<KeyModifier>, pub KeyCode);
+pub struct KeySpec(pub BTreeSet<KeyModifier>, pub KeyCode);
 
 impl Display for KeySpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut modifiers = self.0.clone();
+        let modifiers = self.0.clone();
         let keycode = self.1.clone();
         let is_modifer_empty = modifiers.is_empty();
 
@@ -86,13 +87,13 @@ impl Display for KeySpec {
             return write!(f, "");
         }
 
-        if !is_modifer_empty {
-            let last = modifiers.pop();
-            write!(f, "{}", last.unwrap())?;
-            for modifier in modifiers {
-                write!(f, " + {}", modifier)?;
-            }
-        }
+        let modi = modifiers
+            .iter()
+            .map(|m| format!("{}", m))
+            .collect::<Vec<String>>()
+            .join(" + ");
+
+        write!(f, "{}", modi)?;
 
         if keycode != KeyCode::Null {
             if !is_modifer_empty {
