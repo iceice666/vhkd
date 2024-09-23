@@ -1,8 +1,10 @@
+use std::collections::BTreeSet;
+
 use super::{
     runtime,
     utils::{self, consume_event},
 };
-use crate::keymap::{KeyAction, KeymapDaemon};
+use crate::keymap::{KeyAction, KeyCode, KeyModifier, KeySpec, KeymapDaemon};
 
 pub fn run(keymap: KeymapDaemon) {
     let (tx, rx) = std::sync::mpsc::channel();
@@ -20,10 +22,21 @@ pub fn run(keymap: KeymapDaemon) {
     let keymap_mutex = std::sync::Mutex::new(keymap);
 
     while let Ok(key) = rx.recv() {
+        println!("Received key: {}", key);
+        if KeySpec(
+            BTreeSet::from_iter([
+                KeyModifier::Fn,
+                KeyModifier::Alt,
+                KeyModifier::Cmd,
+                KeyModifier::Ctrl,
+            ]),
+            KeyCode::kVK_F5,
+        ) == key
+        {
+            break;
+        }
         if let Ok(mut keymap) = keymap_mutex.lock() {
-            let action = keymap.make_input(key);
-
-            if let Some(action) = action {
+            if let Some(action) = keymap.make_input(key) {
                 match action {
                     KeyAction::Nop => {}
                     KeyAction::ShellCmd(cmd) => {
@@ -47,6 +60,8 @@ pub fn run(keymap: KeymapDaemon) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::run;
     use crate::keymap::*;
 
@@ -56,8 +71,8 @@ mod tests {
         keymap.bind(
             None,
             KeySequence(vec![
-                KeySpec(vec![], KeyCode::kVK_Space),
-                KeySpec(vec![], KeyCode::kVK_ANSI_L),
+                KeySpec(BTreeSet::new(), KeyCode::kVK_Space),
+                KeySpec(BTreeSet::new(), KeyCode::kVK_ANSI_L),
             ]),
             KeyAction::ShellCmd("notify owo yee".into()),
         );

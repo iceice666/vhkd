@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::c_void;
 
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
@@ -31,6 +32,7 @@ where
             let (keycode, flags) = utils::grab_data(event);
             let mut keycode = KeyCode::from(keycode);
 
+            // Ignore the modifier keys
             if matches!(
                 keycode,
                 KeyCode::kVK_Option
@@ -72,7 +74,7 @@ pub fn observer_mode() {
         if !key_str.is_empty() {
             println!("Key: {}", key_str);
         }
-        if key == KeySpec(vec![KeyModifier::Ctrl], KeyCode::kVK_ANSI_C) {
+        if key == KeySpec(BTreeSet::from_iter([KeyModifier::Ctrl]), KeyCode::kVK_ANSI_C) {
             std::process::exit(0);
         }
         utils::consume_event(event)
