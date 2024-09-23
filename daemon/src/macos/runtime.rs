@@ -8,13 +8,15 @@ use core_graphics::event::{
 
 use crate::keymap::{KeyCode, KeyModifier, KeySpec};
 
+use super::utils;
+
 /// Usually you will nee two threads:
 /// 1. This mainloop thread
 /// 2. The receiver thread which receive the data from channel
 ///
 /// This function takes a **Fn** which cannot mutate **ANY** outer data.  
 /// The solution is open a channel and send the data to the receiver thread.
-pub fn mainloop<F>(callback: F)
+pub(crate) fn mainloop<F>(callback: F)
 where
     F: Fn(&CGEvent, KeySpec) -> Option<CGEvent>,
 {
@@ -46,49 +48,11 @@ where
 
 
 /// Read the key event and print it out
-pub fn observer_mode() {
+pub(crate) fn observer_mode() {
     mainloop(|event, key| {
         println!("Key: {}", key);
         utils::consume_event(event)
     });
 }
 
-pub mod utils {
 
-    use core_graphics::{
-        event::{CGEvent, CGEventFlags, CGEventTapLocation, EventField},
-        event_source::{CGEventSource, CGEventSourceStateID},
-    };
-
-    use crate::keymap::{KeyModifier, KeySpec};
-
-    pub fn consume_event(event: &CGEvent) -> Option<CGEvent> {
-        event.set_flags(CGEventFlags::CGEventFlagNull);
-        event.set_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE, i64::MIN);
-        None
-    }
-
-    pub fn grab_data(event: &CGEvent) -> (i64, CGEventFlags) {
-        let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-        let flags = event.get_flags();
-        (keycode, flags)
-    }
-
-    const MY_FAVORITE_NUMBER: u32 = 0x114514;
-    pub fn post(key: KeySpec) -> Result<(), ()> {
-        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).unwrap();
-        let event = CGEvent::new_keyboard_event(source, 0, true)?;
-        let flags = KeyModifier::into_event_flag(key.0);
-        let key = key.1 as u16;
-
-        event.set_string(&key.to_string());
-        event.set_flags(flags);
-        event.set_integer_value_field(
-            EventField::EVENT_SOURCE_USER_DATA,
-            MY_FAVORITE_NUMBER.into(),
-        );
-        event.post(CGEventTapLocation::HID);
-
-        Ok(())
-    }
-}
