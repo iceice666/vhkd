@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
-use core_graphics::event::{CGEvent, CGEventType};
+use core_graphics::event::{CGEvent, CGEventType, CGKeyCode};
 use core_graphics::event::{
     CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
 };
@@ -29,7 +29,26 @@ where
         vec![CGEventType::KeyDown, CGEventType::FlagsChanged],
         move |_: *const c_void, _et: CGEventType, event: &CGEvent| -> Option<CGEvent> {
             let (keycode, flags) = utils::grab_data(event);
-            let key = KeySpec(KeyModifier::from(flags), KeyCode::from(keycode));
+            let mut keycode = KeyCode::from(keycode);
+
+            if matches!(
+                keycode,
+                KeyCode::kVK_Option
+                    | KeyCode::kVK_RightOption
+                    | KeyCode::kVK_Shift
+                    | KeyCode::kVK_RightShift
+                    | KeyCode::kVK_Command
+                    | KeyCode::kVK_RightCommand
+                    | KeyCode::kVK_Control
+                    | KeyCode::kVK_RightControl
+                    | KeyCode::kVK_Function
+            ) {
+                keycode = KeyCode::Null
+            }
+
+            let modifiers = KeyModifier::from(flags);
+
+            let key = KeySpec(modifiers, keycode);
             callback(event, key)
         },
     )
@@ -46,13 +65,16 @@ where
     }
 }
 
-
 /// Read the key event and print it out
-pub(crate) fn observer_mode() {
+pub fn observer_mode() {
     mainloop(|event, key| {
-        println!("Key: {}", key);
+        let key_str = format!("{}", key);
+        if !key_str.is_empty() {
+            println!("Key: {}", key_str);
+        }
+        if key == KeySpec(vec![KeyModifier::Ctrl], KeyCode::kVK_ANSI_C) {
+            std::process::exit(0);
+        }
         utils::consume_event(event)
     });
 }
-
-

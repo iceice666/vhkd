@@ -11,7 +11,7 @@ const MY_FAVORITE_NUMBER: u32 = 0x114514;
 
 pub(crate) fn consume_event(event: &CGEvent) -> Option<CGEvent> {
     event.set_flags(CGEventFlags::CGEventFlagNull);
-    event.set_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE, i64::MIN);
+    event.set_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE, i64::MAX);
     None
 }
 

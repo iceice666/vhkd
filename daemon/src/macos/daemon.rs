@@ -1,8 +1,10 @@
-use super::{runtime, utils::{self, consume_event}};
+use super::{
+    runtime,
+    utils::{self, consume_event},
+};
 use crate::keymap::{KeyAction, KeymapDaemon};
 
-
-pub fn run() {
+pub fn run(keymap: KeymapDaemon) {
     let (tx, rx) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
@@ -15,7 +17,7 @@ pub fn run() {
         });
     });
 
-    let keymap_mutex = std::sync::Mutex::new(KeymapDaemon::new());
+    let keymap_mutex = std::sync::Mutex::new(keymap);
 
     while let Ok(key) = rx.recv() {
         if let Ok(mut keymap) = keymap_mutex.lock() {
@@ -25,7 +27,7 @@ pub fn run() {
                 match action {
                     KeyAction::Nop => {}
                     KeyAction::ShellCmd(cmd) => {
-                        let _ = std::process::Command::new("sh")
+                        let _ = std::process::Command::new("$SHELL")
                             .arg("-c")
                             .arg(cmd)
                             .output();
@@ -40,5 +42,26 @@ pub fn run() {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run;
+    use crate::keymap::*;
+
+    #[test]
+    fn test_run() {
+        let mut keymap = KeymapDaemon::new();
+        keymap.bind(
+            None,
+            KeySequence(vec![
+                KeySpec(vec![], KeyCode::kVK_Space),
+                KeySpec(vec![], KeyCode::kVK_ANSI_L),
+            ]),
+            KeyAction::ShellCmd("notify owo yee".into()),
+        );
+
+        run(keymap);
     }
 }
