@@ -70,25 +70,28 @@ impl ActionNode {
             mut sequences,
             action,
         } = binding;
-        let mut node = self;
         let target_key = sequences.pop().unwrap();
-
-        for key in sequences {
-            node = node.get_or_insert(key, KeyAction::Nop);
-        }
+        let node = sequences
+            .into_iter()
+            .fold(self, |node, key| node.get_or_insert(key, KeyAction::Nop));
         node.children.push(ActionNode::new(target_key, action));
     }
 
     // Remove a binding from the keymap
     pub fn unbind(&mut self, mut sequences: KeySequence) -> KeymapResult<()> {
         let target_key = sequences.pop().unwrap();
-        let iter = sequences.clone().into_iter();
 
-        let node = iter.fold(Ok(self), |node, key| {
-            node?
-                .get_mut(&key)
-                .map_err(|_| KeymapError::KeyNotFound(sequences.clone(), key.to_string()))
-        })?;
+        let node = sequences
+            .into_iter()
+            .try_fold((self, Vec::new()), |(node, mut seq), key| {
+                node.get_mut(&key)
+                    .map(|next_node| {
+                        seq.push(key.clone());
+                        (next_node, seq.clone())
+                    })
+                    .map_err(|_| KeymapError::KeyNotFound(KeySequence(seq), key.to_string()))
+            })?
+            .0;
 
         node.children.retain(|node| node.key != target_key);
         Ok(())
@@ -111,7 +114,7 @@ impl KeyMap {
 
     pub fn unbind(&mut self, sequences: KeySequence, mode: String) -> KeymapResult<()> {
         let target_keymap = self.0.get_mut(&mode).ok_or(KeymapError::NoSuchMode(mode))?;
-        target_keymap.unbind(sequences);
+        target_keymap.unbind(sequences)?;
         Ok(())
     }
 
